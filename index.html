@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Kanban Board (Hybrid Storage)</title>
+  <title>Kanban Board (Hybrid Storage + Colors)</title>
   <style>
     body {
       margin: 0;
@@ -33,11 +33,11 @@
       margin-bottom: 10px;
     }
     .task {
+      background: #444;
       padding: 8px;
       margin: 5px 0;
       border-radius: 5px;
       cursor: grab;
-      color: white;
     }
     .task[contenteditable="true"] {
       outline: 2px solid #4cafef;
@@ -52,6 +52,14 @@
       font-size: 16px;
       border-radius: 5px;
       border: none;
+    }
+    #taskColor {
+      width: 40px;
+      height: 40px;
+      border: none;
+      cursor: pointer;
+      margin-left: 5px;
+      vertical-align: middle;
     }
     button {
       margin: 5px;
@@ -75,11 +83,12 @@
   </style>
 </head>
 <body>
-  <h1>Kanban Board (Hybrid Storage)</h1>
+  <h1>Kanban Board (Hybrid Storage + Colors)</h1>
 
   <div class="controls">
     <input type="text" id="taskInput" placeholder="New Task"
            onkeypress="handleKeyPress(event)">
+    <input type="color" id="taskColor" value="#444444">
     <button onclick="addTask()">Add to To-Do</button>
     <button onclick="exportBoard()">Export JSON</button>
     <input type="file" id="fileInput" onchange="importBoard(event)">
@@ -107,16 +116,14 @@
   <script>
     let dragged = null;
 
-    function getRandomColor() {
-      return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
-    }
-
     function addTask() {
       const input = document.getElementById("taskInput");
+      const colorInput = document.getElementById("taskColor");
       const taskText = input.value.trim();
+      const taskColor = colorInput.value;
       if (taskText === "") return;
 
-      const task = createTaskElement(taskText);
+      const task = createTaskElement(taskText, taskColor);
       document.getElementById("todo").appendChild(task);
       input.value = "";
       saveBoard();
@@ -128,30 +135,28 @@
       }
     }
 
-    function createTaskElement(text) {
+    function createTaskElement(text, color = "#444444") {
       const task = document.createElement("div");
       task.className = "task";
       task.textContent = text;
-
-      // Set random background color
-      task.style.backgroundColor = getRandomColor();
-      task.style.color = "white"; // Ensure text is readable
-
+      task.style.background = color;
       task.draggable = true;
       task.ondragstart = drag;
 
+      // Enable in-place editing on double-click
       task.ondblclick = () => {
         task.contentEditable = true;
         task.focus();
       };
 
+      // Save changes on blur or Enter key
       task.onblur = () => {
         task.contentEditable = false;
         saveBoard();
       };
       task.onkeypress = (e) => {
         if (e.key === "Enter") {
-          e.preventDefault();
+          e.preventDefault(); // prevent newline
           task.blur();
         }
       };
@@ -183,7 +188,7 @@
       return Array.from(document.getElementById(columnId).querySelectorAll(".task"))
                   .map(task => ({
                     text: task.textContent,
-                    color: task.style.backgroundColor || "#444"
+                    color: task.style.background
                   }));
     }
 
@@ -239,9 +244,13 @@
         const col = document.getElementById(colId);
         col.querySelectorAll(".task").forEach(t => t.remove());
         (data[colId] || []).forEach(item => {
-          const task = createTaskElement(item.text);
-          task.style.backgroundColor = item.color || getRandomColor();
-          col.appendChild(task);
+          if (typeof item === "string") {
+            const task = createTaskElement(item);
+            col.appendChild(task);
+          } else {
+            const task = createTaskElement(item.text, item.color);
+            col.appendChild(task);
+          }
         });
       });
     }
